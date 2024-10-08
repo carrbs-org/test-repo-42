@@ -2,28 +2,37 @@ name: Handle Project V2 Item Events
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [project_v2_item_event] # Custom event type
 
 jobs:
   notify_slack:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
       - name: Send event details to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # To access the GitHub context
         run: |
-          # Set the message content based on the incoming event
-          MESSAGE="A Project V2 item was updated."
+          # Load the event data from the incoming request
+          EVENT_DATA=$(cat $GITHUB_EVENT_PATH)
 
-          # Extract event information from input (passed as JSON)
-          if [[ "${{ github.event.action }}" == "edited" ]]; then
-            FROM="${{ github.event.changes.field_value.from }}"
-            TO="${{ github.event.changes.field_value.to }}"
-            MESSAGE="A Project V2 item was moved from ${FROM} to ${TO}."
-          elif [[ "${{ github.event.action }}" == "deleted" ]]; then
+          # Extract action and changes from the event
+          ACTION=$(echo "$EVENT_DATA" | jq -r .action)
+          FROM=$(echo "$EVENT_DATA" | jq -r .changes.field_value.from)
+          TO=$(echo "$EVENT_DATA" | jq -r .changes.field_value.to)
+
+          # Set message content based on the action
+          if [[ "$ACTION" == "edited" ]]; then
+            MESSAGE="A Project V2 item was moved from $FROM to $TO."
+          elif [[ "$ACTION" == "deleted" ]]; then
             MESSAGE="A Project V2 item has been deleted."
-          elif [[ "${{ github.event.action }}" == "created" ]]; then
+          elif [[ "$ACTION" == "created" ]]; then
             MESSAGE="A new Project V2 item has been created."
+          else
+            MESSAGE="A Project V2 item was updated."
           fi
 
           # Send the formatted message to Slack
