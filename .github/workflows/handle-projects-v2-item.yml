@@ -1,36 +1,32 @@
-name: Handle Project V2 Item Events
+name: Project V2 Items to Slack
 
 on:
   project_v2_item:
-    types: [created, updated, deleted, moved]  # Handle all relevant project item events
+    types: [created, updated, deleted]
 
 jobs:
-  notify_slack:
+  project_v2_item_to_slack:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Send event details to Slack
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Your Slack Webhook URL
-        run: |
-          # Load the event data
-          EVENT_DATA='${{ toJson(github.event) }}'  # Use github.event directly
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-          # Extract details based on the event type
-          ACTION=$(echo "$EVENT_DATA" | jq -r .action)
-          ITEM_TITLE=$(echo "$EVENT_DATA" | jq -r .project_v2_item.title)
+    - name: Reformat JSON and send to Slack
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        echo "Reformatting JSON..."
+        EVENT_JSON=$(jq -n --argjson event "${{ toJson(github.event) }}" '{
+          text: "Project V2 Item \($event.action): \($event.project_v2_item.title)",
+          attachments: [
+            {
+              title: $event.project_v2_item.title,
+              text: $event.project_v2_item.body,
+              color: if $event.action == "created" then "good" elif $event.action == "updated" then "warning" else "danger" end
+            }
+          ]
+        }')
 
-          # Create message based on the action
-          if [[ "$ACTION" == "created" ]]; then
-            MESSAGE="A new Project V2 item was created: '$ITEM_TITLE'."
-          elif [[ "$ACTION" == "updated" ]]; then
-            MESSAGE="A Project V2 item was updated: '$ITEM_TITLE'."
-          elif [[ "$ACTION" == "deleted" ]]; then
-            MESSAGE="A Project V2 item has been deleted: '$ITEM_TITLE'."
-          elif [[ "$ACTION" == "moved" ]]; then
-            MESSAGE="A Project V2 item was moved: '$ITEM_TITLE'."
-          fi
-
-          # Send message to Slack
-          curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"GitHub Projects V2 Update", "blocks":[{"type":"section","text":{"type":"mrkdwn","text":"'"$MESSAGE"'"}}]}' \
-          "$SLACK_WEBHOOK_URL"
+        echo "Sending to Slack..."
+        curl -X POST -H 'Content-type: application/json' --data "$EVENT_JSON" $SLACK_WEBHOOK_URL
