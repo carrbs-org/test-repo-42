@@ -1,0 +1,32 @@
+name: Handle Project V2 Item Events
+
+on:
+  workflow_dispatch:
+
+jobs:
+  notify_slack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send event details to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # To access the GitHub context
+        run: |
+          # Set the message content based on the incoming event
+          MESSAGE="A Project V2 item was updated."
+
+          # Extract event information from input (passed as JSON)
+          if [[ "${{ github.event.action }}" == "edited" ]]; then
+            FROM="${{ github.event.changes.field_value.from }}"
+            TO="${{ github.event.changes.field_value.to }}"
+            MESSAGE="A Project V2 item was moved from ${FROM} to ${TO}."
+          elif [[ "${{ github.event.action }}" == "deleted" ]]; then
+            MESSAGE="A Project V2 item has been deleted."
+          elif [[ "${{ github.event.action }}" == "created" ]]; then
+            MESSAGE="A new Project V2 item has been created."
+          fi
+
+          # Send the formatted message to Slack
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"GitHub Projects V2 Update", "blocks":[{"type":"section","text":{"type":"mrkdwn","text":"'"$MESSAGE"'"}}]}' \
+          $SLACK_WEBHOOK_URL
