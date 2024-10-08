@@ -1,8 +1,8 @@
-name: Handle Project V2 Item Events
+name: Handle Webhook Events
 
 on:
   repository_dispatch:
-    types: [project_v2_item_event] # Custom event type
+    types: [custom_event] # This is the custom event type you will trigger
 
 jobs:
   notify_slack:
@@ -11,10 +11,9 @@ jobs:
       - name: Send event details to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # Your Slack Webhook URL
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Default GitHub token
         run: |
           # Load the event data from the incoming request
-          EVENT_DATA=$(cat $GITHUB_EVENT_PATH)
+          EVENT_DATA=$(echo '${{ github.event.client_payload }}')
 
           # Extract action and changes from the event
           ACTION=$(echo "$EVENT_DATA" | jq -r .action)
