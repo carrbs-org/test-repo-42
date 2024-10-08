@@ -1,7 +1,6 @@
 name: Handle Project V2 Item Events
 
 on:
-  workflow_dispatch:
   repository_dispatch:
     types: [project_v2_item_event] # Custom event type
 
@@ -9,12 +8,10 @@ jobs:
   notify_slack:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-
       - name: Send event details to Slack
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # Your Slack Webhook URL
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Default GitHub token
         run: |
           # Load the event data from the incoming request
           EVENT_DATA=$(cat $GITHUB_EVENT_PATH)
@@ -26,7 +23,7 @@ jobs:
 
           # Set message content based on the action
           if [[ "$ACTION" == "edited" ]]; then
-            MESSAGE="A Project V2 item was moved from $FROM to $TO."
+            MESSAGE="A Project V2 item was moved from '$FROM' to '$TO'."
           elif [[ "$ACTION" == "deleted" ]]; then
             MESSAGE="A Project V2 item has been deleted."
           elif [[ "$ACTION" == "created" ]]; then
