@@ -1,8 +1,8 @@
-name: Handle Webhook Events
+name: Handle Project V2 Item Events
 
 on:
-  repository_dispatch:
-    types: [custom_event]  # Ensure this matches the event_type you are using
+  project_v2_item:
+    types: [created, updated, deleted, moved]  # Handle all relevant project item events
 
 jobs:
   notify_slack:
@@ -12,26 +12,25 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Your Slack Webhook URL
         run: |
-          # Load the event data from the incoming request
-          EVENT_DATA='${{ toJson(github.event.client_payload) }}'
+          # Load the event data
+          EVENT_DATA='${{ toJson(github.event) }}'  # Use github.event directly
 
-          # Extract action and changes from the event
+          # Extract details based on the event type
           ACTION=$(echo "$EVENT_DATA" | jq -r .action)
-          FROM=$(echo "$EVENT_DATA" | jq -r .changes.field_value.from)
-          TO=$(echo "$EVENT_DATA" | jq -r .changes.field_value.to)
+          ITEM_TITLE=$(echo "$EVENT_DATA" | jq -r .project_v2_item.title)
 
-          # Set message content based on the action
-          if [[ "$ACTION" == "edited" ]]; then
-            MESSAGE="A Project V2 item was moved from '$FROM' to '$TO'."
+          # Create message based on the action
+          if [[ "$ACTION" == "created" ]]; then
+            MESSAGE="A new Project V2 item was created: '$ITEM_TITLE'."
+          elif [[ "$ACTION" == "updated" ]]; then
+            MESSAGE="A Project V2 item was updated: '$ITEM_TITLE'."
           elif [[ "$ACTION" == "deleted" ]]; then
-            MESSAGE="A Project V2 item has been deleted."
-          elif [[ "$ACTION" == "created" ]]; then
-            MESSAGE="A new Project V2 item has been created."
-          else
-            MESSAGE="A Project V2 item was updated."
+            MESSAGE="A Project V2 item has been deleted: '$ITEM_TITLE'."
+          elif [[ "$ACTION" == "moved" ]]; then
+            MESSAGE="A Project V2 item was moved: '$ITEM_TITLE'."
           fi
 
-          # Send the formatted message to Slack
+          # Send message to Slack
           curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"GitHub Projects V2 Update", "blocks":[{"type":"section","text":{"type":"mrkdwn","text":"'"$MESSAGE"'"}}]}' \
           "$SLACK_WEBHOOK_URL"
