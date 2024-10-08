@@ -2,7 +2,7 @@ name: Handle Webhook Events
 
 on:
   repository_dispatch:
-    types: [custom_event] # This is the custom event type you will trigger
+    types: [custom_event]  # This is the custom event type you will trigger
 
 jobs:
   notify_slack:
@@ -13,7 +13,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # Your Slack Webhook URL
         run: |
           # Load the event data from the incoming request
-          EVENT_DATA=$(echo '${{ github.event.client_payload }}')
+          EVENT_DATA='${{ toJson(github.event.client_payload) }}'  # Use toJson to get the payload as a string
 
           # Extract action and changes from the event
           ACTION=$(echo "$EVENT_DATA" | jq -r .action)
@@ -34,4 +34,4 @@ jobs:
           # Send the formatted message to Slack
           curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"GitHub Projects V2 Update", "blocks":[{"type":"section","text":{"type":"mrkdwn","text":"'"$MESSAGE"'"}}]}' \
-          $SLACK_WEBHOOK_URL
+          "$SLACK_WEBHOOK_URL"
